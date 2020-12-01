@@ -1,0 +1,2481 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name"
+		},
+		"AzureSqlDatabase1": {
+			"type": "string"
+		},
+		"DWdatabase": {
+			"type": "string"
+		},
+		"Source Database": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/master_pipeline')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "GetCutOff",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT GETUTCDATE() as CurrentCutoff",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "CurrentCutoff",
+								"type": "DatasetReference"
+							}
+						}
+					},
+					{
+						"name": "EmployeePipeline",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "GetCutOff",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "EmployeePipeline",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true
+						}
+					},
+					{
+						"name": "StockItemsPipeline",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "GetCutOff",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "StockItemsPipeline",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true
+						}
+					},
+					{
+						"name": "CustomerPipeline",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "GetCutOff",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CustomerPipeline",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true
+						}
+					},
+					{
+						"name": "city_pipeline",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "GetCutOff",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "city_pipeline",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true
+						}
+					},
+					{
+						"name": "SalesPipeline",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "city_pipeline",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "CustomerPipeline",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "EmployeePipeline",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "StockItemsPipeline",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "SalesPipeline",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true
+						}
+					},
+					{
+						"name": "PopulationPipeline",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "SalesPipeline",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "PopulationPipeline",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true
+						}
+					}
+				],
+				"annotations": [],
+				"lastPublishTime": "2020-11-30T00:47:46Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/CurrentCutoff')]",
+				"[concat(variables('factoryId'), '/pipelines/EmployeePipeline')]",
+				"[concat(variables('factoryId'), '/pipelines/StockItemsPipeline')]",
+				"[concat(variables('factoryId'), '/pipelines/CustomerPipeline')]",
+				"[concat(variables('factoryId'), '/pipelines/city_pipeline')]",
+				"[concat(variables('factoryId'), '/pipelines/SalesPipeline')]",
+				"[concat(variables('factoryId'), '/pipelines/PopulationPipeline')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CurrentCutoff')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('AzureSqlDatabase1')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/EmployeePipeline')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "GetLastETLCutoff-Employee",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "GetCutOff",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT [CutOff Time] AS LastCutoffTime FROM [Integration].[ETL Cutoff] Where [Table Name] ='[Dimension].[Employee]'",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "ETLCutoff2",
+								"type": "DatasetReference"
+							}
+						}
+					},
+					{
+						"name": "CreateLineage-EmployeeDimensions",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "GetLastETLCutoff-Employee",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[Integration].[GetLineageKey]",
+							"storedProcedureParameters": {
+								"NewCutoffTime": {
+									"value": {
+										"value": "@activity('GetCutOff').output.firstRow.CurrentCutoff",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"TableName": {
+									"value": "Employee",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "[parameters('DWdatabase')]",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "GetCutOff",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT GETUTCDATE() as CurrentCutoff",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "CurrentCutoff2",
+								"type": "DatasetReference"
+							}
+						}
+					},
+					{
+						"name": "GetCurrentETLCutoff-Employee",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "CreateLineage-EmployeeDimensions",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT MAX([Data Load Started]) as LatestSystemCutOffTime From Integration.Lineage where [Table Name] ='[Dimension].[Employee]' and [Data Load Completed] is null",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "Lineage2",
+								"type": "DatasetReference"
+							}
+						}
+					},
+					{
+						"name": "Copy-Employee",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "GetCurrentETLCutoff-Employee",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderStoredProcedureName": "[[Integration].[GetEmployeeCustomerUpdates]",
+								"storedProcedureParameters": {
+									"LastCutoff": {
+										"type": "DateTime",
+										"value": {
+											"value": "@activity('GetLastETLCutoff-Employee').output.firstRow.LastCutoffTime",
+											"type": "Expression"
+										}
+									},
+									"NewCutoff": {
+										"type": "DateTime",
+										"value": {
+											"value": "@activity('GetCurrentETLCutoff-Employee').output.firstRow.LatestSystemCutoffTIme",
+											"type": "Expression"
+										}
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "AzureSqlSink"
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "CityChanges2",
+								"type": "DatasetReference"
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "CityChangesDW2",
+								"type": "DatasetReference"
+							}
+						]
+					},
+					{
+						"name": "MigrateStaged_EmployeeData",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Copy-Employee",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[Integration].[MigrateStagedEmployeeData]"
+						},
+						"linkedServiceName": {
+							"referenceName": "[parameters('DWdatabase')]",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"annotations": [],
+				"lastPublishTime": "2020-11-30T04:23:27Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ETLCutoff2')]",
+				"[concat(variables('factoryId'), '/datasets/CurrentCutoff2')]",
+				"[concat(variables('factoryId'), '/datasets/Lineage2')]",
+				"[concat(variables('factoryId'), '/datasets/CityChanges2')]",
+				"[concat(variables('factoryId'), '/datasets/CityChangesDW2')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/StockItemsPipeline')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "GetLastETLCutoff-City",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "GetCutOff",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT [CutOff Time] AS LastCutoffTime FROM [Integration].[ETL Cutoff] Where [Table Name] ='[Dimension].[City]'",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "ETLCutoff3",
+								"type": "DatasetReference"
+							}
+						}
+					},
+					{
+						"name": "CreateLineage-CityDimensions",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "GetLastETLCutoff-City",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[Integration].[GetLineageKey]",
+							"storedProcedureParameters": {
+								"NewCutoffTime": {
+									"value": {
+										"value": "@activity('GetCutOff').output.firstRow.CurrentCutoff",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"TableName": {
+									"value": "City",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "[parameters('DWdatabase')]",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "GetCutOff",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT GETUTCDATE() as CurrentCutoff",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "CurrentCutoff3",
+								"type": "DatasetReference"
+							}
+						}
+					},
+					{
+						"name": "GetCurrentETLCutoff-City",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "CreateLineage-CityDimensions",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT MAX([Data Load Started]) as LatestSystemCutOffTime From Integration.Lineage where [Table Name] ='[Dimension].[City]' and [Data Load Completed] is null",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "Lineage3",
+								"type": "DatasetReference"
+							}
+						}
+					},
+					{
+						"name": "Copy-City",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "GetCurrentETLCutoff-City",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderStoredProcedureName": "[[Integration].[GetCityUpdates]",
+								"storedProcedureParameters": {
+									"LastCutoff": {
+										"type": "DateTime",
+										"value": {
+											"value": "@activity('GetLastETLCutoff-City').output.firstRow.LastCutoffTime",
+											"type": "Expression"
+										}
+									},
+									"NewCutoff": {
+										"type": "DateTime",
+										"value": {
+											"value": "@activity('GetCurrentETLCutoff-City').output.firstRow.LatestSystemCutoffTIme",
+											"type": "Expression"
+										}
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "AzureSqlSink"
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "CityChanges3",
+								"type": "DatasetReference"
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "CityChangesDW3",
+								"type": "DatasetReference"
+							}
+						]
+					},
+					{
+						"name": "MigrateStaged_CityData",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Copy-City",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[Integration].[MigrateStagedCityData]"
+						},
+						"linkedServiceName": {
+							"referenceName": "[parameters('DWdatabase')]",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"annotations": [],
+				"lastPublishTime": "2020-11-30T04:23:27Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ETLCutoff3')]",
+				"[concat(variables('factoryId'), '/datasets/CurrentCutoff3')]",
+				"[concat(variables('factoryId'), '/datasets/Lineage3')]",
+				"[concat(variables('factoryId'), '/datasets/CityChanges3')]",
+				"[concat(variables('factoryId'), '/datasets/CityChangesDW3')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CustomerPipeline')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "GetLastETLCutoff-Customer",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "GetCutOff",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT [CutOff Time] AS LastCutoffTime FROM [Integration].[ETL Cutoff] Where [Table Name] ='[Dimension].[Customer]'",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "ETLCutoff1",
+								"type": "DatasetReference"
+							}
+						}
+					},
+					{
+						"name": "CreateLineage-CustomerDimensions",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "GetLastETLCutoff-Customer",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[Integration].[GetLineageKey]",
+							"storedProcedureParameters": {
+								"NewCutoffTime": {
+									"value": {
+										"value": "@activity('GetCutOff').output.firstRow.CurrentCutoff",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"TableName": {
+									"value": "Customer",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "[parameters('DWdatabase')]",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "GetCutOff",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT GETUTCDATE() as CurrentCutoff",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "CurrentCutoff1",
+								"type": "DatasetReference"
+							}
+						}
+					},
+					{
+						"name": "GetCurrentETLCutoff-Customer",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "CreateLineage-CustomerDimensions",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT MAX([Data Load Started]) as LatestSystemCutOffTime From Integration.Lineage where [Table Name] ='[Dimension].[Customer]' and [Data Load Completed] is null",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "Lineage1",
+								"type": "DatasetReference"
+							}
+						}
+					},
+					{
+						"name": "Copy-Customer",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "GetCurrentETLCutoff-Customer",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderStoredProcedureName": "[[Integration].[GetCustomerUpdates]",
+								"storedProcedureParameters": {
+									"LastCutoff": {
+										"type": "DateTime",
+										"value": {
+											"value": "@activity('GetLastETLCutoff-Customer').output.firstRow.LastCutoffTime",
+											"type": "Expression"
+										}
+									},
+									"NewCutoff": {
+										"type": "DateTime",
+										"value": {
+											"value": "@activity('GetCurrentETLCutoff-Customer').output.firstRow.LatestSystemCutoffTIme",
+											"type": "Expression"
+										}
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "AzureSqlSink"
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "CityChanges1",
+								"type": "DatasetReference"
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "CityChangesDW1",
+								"type": "DatasetReference"
+							}
+						]
+					},
+					{
+						"name": "MigrateStaged_CustomerData",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Copy-Customer",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[Integration].[MigrateStagedCustomerData]"
+						},
+						"linkedServiceName": {
+							"referenceName": "[parameters('DWdatabase')]",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"annotations": [],
+				"lastPublishTime": "2020-11-30T04:23:27Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ETLCutoff1')]",
+				"[concat(variables('factoryId'), '/datasets/CurrentCutoff1')]",
+				"[concat(variables('factoryId'), '/datasets/Lineage1')]",
+				"[concat(variables('factoryId'), '/datasets/CityChanges1')]",
+				"[concat(variables('factoryId'), '/datasets/CityChangesDW1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/city_pipeline')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "GetLastETLCutoff-City",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "GetCutOff",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT [CutOff Time] AS LastCutoffTime FROM [Integration].[ETL Cutoff] Where [Table Name] ='[Dimension].[City]'",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "ETLCutoff",
+								"type": "DatasetReference"
+							}
+						}
+					},
+					{
+						"name": "CreateLineage-CityDimensions",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "GetLastETLCutoff-City",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[Integration].[GetLineageKey]",
+							"storedProcedureParameters": {
+								"NewCutoffTime": {
+									"value": {
+										"value": "@activity('GetCutOff').output.firstRow.CurrentCutoff",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"TableName": {
+									"value": "City",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "[parameters('DWdatabase')]",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "GetCutOff",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT GETUTCDATE() as CurrentCutoff",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "CurrentCutoff",
+								"type": "DatasetReference"
+							}
+						}
+					},
+					{
+						"name": "GetCurrentETLCutoff-City",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "CreateLineage-CityDimensions",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT MAX([Data Load Started]) as LatestSystemCutOffTime From Integration.Lineage where [Table Name] ='[Dimension].[City]' and [Data Load Completed] is null",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "Lineage",
+								"type": "DatasetReference"
+							}
+						}
+					},
+					{
+						"name": "Copy-City",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "GetCurrentETLCutoff-City",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderStoredProcedureName": "[[Integration].[GetCityUpdates]",
+								"storedProcedureParameters": {
+									"LastCutoff": {
+										"type": "DateTime",
+										"value": {
+											"value": "@activity('GetLastETLCutoff-City').output.firstRow.LastCutoffTime",
+											"type": "Expression"
+										}
+									},
+									"NewCutoff": {
+										"type": "DateTime",
+										"value": {
+											"value": "@activity('GetCurrentETLCutoff-City').output.firstRow.LatestSystemCutoffTIme",
+											"type": "Expression"
+										}
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "AzureSqlSink"
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "CityChanges",
+								"type": "DatasetReference"
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "CityChangesDW",
+								"type": "DatasetReference"
+							}
+						]
+					},
+					{
+						"name": "MigrateStaged_CityData",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Copy-City",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[Integration].[MigrateStagedCityData]"
+						},
+						"linkedServiceName": {
+							"referenceName": "[parameters('DWdatabase')]",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"annotations": [],
+				"lastPublishTime": "2020-11-30T04:23:27Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ETLCutoff')]",
+				"[concat(variables('factoryId'), '/datasets/CurrentCutoff')]",
+				"[concat(variables('factoryId'), '/datasets/Lineage')]",
+				"[concat(variables('factoryId'), '/datasets/CityChanges')]",
+				"[concat(variables('factoryId'), '/datasets/CityChangesDW')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SalesPipeline')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "GetLastETLCutoff-Sales",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "GetCutOff",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT [CutOff Time] AS LastCutoffTime FROM [Integration].[ETL Cutoff] Where [Table Name] ='[Dimension].[City]'",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "ETLCutoff4",
+								"type": "DatasetReference"
+							}
+						}
+					},
+					{
+						"name": "CreateLineage-SalesDimensions",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "GetLastETLCutoff-Sales",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[Integration].[GetLineageKey]",
+							"storedProcedureParameters": {
+								"NewCutoffTime": {
+									"value": {
+										"value": "@activity('GetCutOff').output.firstRow.CurrentCutoff",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"TableName": {
+									"value": "City",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "[parameters('DWdatabase')]",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "GetCutOff",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT GETUTCDATE() as CurrentCutoff",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "CurrentCutoff4",
+								"type": "DatasetReference"
+							}
+						}
+					},
+					{
+						"name": "GetCurrentETLCutoff-Sales",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "CreateLineage-SalesDimensions",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT MAX([Data Load Started]) as LatestSystemCutOffTime From Integration.Lineage where [Table Name] ='[Dimension].[Sales]' and [Data Load Completed] is null",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "Lineage4",
+								"type": "DatasetReference"
+							}
+						}
+					},
+					{
+						"name": "Copy-Sales",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "GetCurrentETLCutoff-Sales",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderStoredProcedureName": "[[Integration].[GetSalesUpdates]",
+								"storedProcedureParameters": {
+									"LastCutoff": {
+										"type": "DateTime",
+										"value": {
+											"value": "@activity('GetLastETLCutoff-Sales').output.firstRow.LastCutoffTime",
+											"type": "Expression"
+										}
+									},
+									"NewCutoff": {
+										"type": "DateTime",
+										"value": {
+											"value": "@activity('GetCurrentETLCutoff-Sales').output.firstRow.LatestSystemCutoffTIme",
+											"type": "Expression"
+										}
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "AzureSqlSink"
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "CityChanges4",
+								"type": "DatasetReference"
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "CityChangesDW4",
+								"type": "DatasetReference"
+							}
+						]
+					},
+					{
+						"name": "MigrateStaged_SalesData",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Copy-Sales",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[Integration].[MigrateStagedSalesData]"
+						},
+						"linkedServiceName": {
+							"referenceName": "[parameters('DWdatabase')]",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"annotations": [],
+				"lastPublishTime": "2020-11-30T04:23:27Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ETLCutoff4')]",
+				"[concat(variables('factoryId'), '/datasets/CurrentCutoff4')]",
+				"[concat(variables('factoryId'), '/datasets/Lineage4')]",
+				"[concat(variables('factoryId'), '/datasets/CityChanges4')]",
+				"[concat(variables('factoryId'), '/datasets/CityChangesDW4')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PopulationPipeline')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "GetLastETLCutoff-City",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "GetCutOff",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT [CutOff Time] AS LastCutoffTime FROM [Integration].[ETL Cutoff] Where [Table Name] ='[Dimension].[City]'",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "ETLCutoff5",
+								"type": "DatasetReference"
+							}
+						}
+					},
+					{
+						"name": "CreateLineage-CityDimensions",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "GetLastETLCutoff-City",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[Integration].[GetLineageKey]",
+							"storedProcedureParameters": {
+								"NewCutoffTime": {
+									"value": {
+										"value": "@activity('GetCutOff').output.firstRow.CurrentCutoff",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"TableName": {
+									"value": "City",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "[parameters('DWdatabase')]",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "GetCutOff",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT GETUTCDATE() as CurrentCutoff",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "CurrentCutoff5",
+								"type": "DatasetReference"
+							}
+						}
+					},
+					{
+						"name": "GetCurrentETLCutoff-City",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "CreateLineage-CityDimensions",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT MAX([Data Load Started]) as LatestSystemCutOffTime From Integration.Lineage where [Table Name] ='[Dimension].[City]' and [Data Load Completed] is null",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "Lineage5",
+								"type": "DatasetReference"
+							}
+						}
+					},
+					{
+						"name": "Copy-City",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "GetCurrentETLCutoff-City",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderStoredProcedureName": "[[Integration].[GetCityUpdates]",
+								"storedProcedureParameters": {
+									"LastCutoff": {
+										"type": "DateTime",
+										"value": {
+											"value": "@activity('GetLastETLCutoff-City').output.firstRow.LastCutoffTime",
+											"type": "Expression"
+										}
+									},
+									"NewCutoff": {
+										"type": "DateTime",
+										"value": {
+											"value": "@activity('GetCurrentETLCutoff-City').output.firstRow.LatestSystemCutoffTIme",
+											"type": "Expression"
+										}
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "AzureSqlSink"
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "CityChanges5",
+								"type": "DatasetReference"
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "CityChangesDW5",
+								"type": "DatasetReference"
+							}
+						]
+					},
+					{
+						"name": "MigrateStaged_CityData",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Copy-City",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[Integration].[MigrateStagedCityData]"
+						},
+						"linkedServiceName": {
+							"referenceName": "[parameters('DWdatabase')]",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"annotations": [],
+				"lastPublishTime": "2020-11-30T04:23:27Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ETLCutoff5')]",
+				"[concat(variables('factoryId'), '/datasets/CurrentCutoff5')]",
+				"[concat(variables('factoryId'), '/datasets/Lineage5')]",
+				"[concat(variables('factoryId'), '/datasets/CityChanges5')]",
+				"[concat(variables('factoryId'), '/datasets/CityChangesDW5')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ETLCutoff2')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('DWdatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CurrentCutoff2')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('DWdatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Lineage2')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('DWdatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CityChanges2')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('Source Database')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CityChangesDW2')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('DWdatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "City Staging Key",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "WWI City ID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "City",
+						"type": "nvarchar"
+					},
+					{
+						"name": "State Province",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Country",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Continent",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Sales Territory",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Region",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Subregion",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Location",
+						"type": "WideWorldImportersDW-Standard.sys.geography"
+					},
+					{
+						"name": "Latest Recorded Population",
+						"type": "bigint",
+						"precision": 19
+					},
+					{
+						"name": "Valid From",
+						"type": "datetime2",
+						"scale": 7
+					},
+					{
+						"name": "Valid To",
+						"type": "datetime2",
+						"scale": 7
+					}
+				],
+				"typeProperties": {
+					"schema": "Integration",
+					"table": "Employee_Staging"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ETLCutoff3')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('DWdatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CurrentCutoff3')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('DWdatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Lineage3')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('DWdatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CityChanges3')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('Source Database')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CityChangesDW3')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('DWdatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "City Staging Key",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "WWI City ID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "City",
+						"type": "nvarchar"
+					},
+					{
+						"name": "State Province",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Country",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Continent",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Sales Territory",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Region",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Subregion",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Location",
+						"type": "WideWorldImportersDW-Standard.sys.geography"
+					},
+					{
+						"name": "Latest Recorded Population",
+						"type": "bigint",
+						"precision": 19
+					},
+					{
+						"name": "Valid From",
+						"type": "datetime2",
+						"scale": 7
+					},
+					{
+						"name": "Valid To",
+						"type": "datetime2",
+						"scale": 7
+					}
+				],
+				"typeProperties": {
+					"schema": "Integration",
+					"table": "City_Staging"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ETLCutoff1')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('DWdatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CurrentCutoff1')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('DWdatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Lineage1')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('DWdatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CityChanges1')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('Source Database')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CityChangesDW1')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('DWdatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "City Staging Key",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "WWI City ID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "City",
+						"type": "nvarchar"
+					},
+					{
+						"name": "State Province",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Country",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Continent",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Sales Territory",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Region",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Subregion",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Location",
+						"type": "WideWorldImportersDW-Standard.sys.geography"
+					},
+					{
+						"name": "Latest Recorded Population",
+						"type": "bigint",
+						"precision": 19
+					},
+					{
+						"name": "Valid From",
+						"type": "datetime2",
+						"scale": 7
+					},
+					{
+						"name": "Valid To",
+						"type": "datetime2",
+						"scale": 7
+					}
+				],
+				"typeProperties": {
+					"schema": "Integration",
+					"table": "Customer_Staging"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ETLCutoff')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('DWdatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Lineage')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('DWdatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CityChanges')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('Source Database')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CityChangesDW')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('DWdatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "City Staging Key",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "WWI City ID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "City",
+						"type": "nvarchar"
+					},
+					{
+						"name": "State Province",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Country",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Continent",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Sales Territory",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Region",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Subregion",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Location",
+						"type": "WideWorldImportersDW-Standard.sys.geography"
+					},
+					{
+						"name": "Latest Recorded Population",
+						"type": "bigint",
+						"precision": 19
+					},
+					{
+						"name": "Valid From",
+						"type": "datetime2",
+						"scale": 7
+					},
+					{
+						"name": "Valid To",
+						"type": "datetime2",
+						"scale": 7
+					}
+				],
+				"typeProperties": {
+					"schema": "Integration",
+					"table": "City_Staging"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ETLCutoff4')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('DWdatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CurrentCutoff4')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('DWdatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Lineage4')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('DWdatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CityChanges4')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('Source Database')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CityChangesDW4')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('DWdatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "City Staging Key",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "WWI City ID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "City",
+						"type": "nvarchar"
+					},
+					{
+						"name": "State Province",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Country",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Continent",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Sales Territory",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Region",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Subregion",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Location",
+						"type": "WideWorldImportersDW-Standard.sys.geography"
+					},
+					{
+						"name": "Latest Recorded Population",
+						"type": "bigint",
+						"precision": 19
+					},
+					{
+						"name": "Valid From",
+						"type": "datetime2",
+						"scale": 7
+					},
+					{
+						"name": "Valid To",
+						"type": "datetime2",
+						"scale": 7
+					}
+				],
+				"typeProperties": {
+					"schema": "Integration",
+					"table": "City_Staging"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ETLCutoff5')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('DWdatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CurrentCutoff5')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('DWdatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Lineage5')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('DWdatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CityChanges5')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('Source Database')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CityChangesDW5')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('DWdatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "City Staging Key",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "WWI City ID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "City",
+						"type": "nvarchar"
+					},
+					{
+						"name": "State Province",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Country",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Continent",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Sales Territory",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Region",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Subregion",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Location",
+						"type": "WideWorldImportersDW-Standard.sys.geography"
+					},
+					{
+						"name": "Latest Recorded Population",
+						"type": "bigint",
+						"precision": 19
+					},
+					{
+						"name": "Valid From",
+						"type": "datetime2",
+						"scale": 7
+					},
+					{
+						"name": "Valid To",
+						"type": "datetime2",
+						"scale": 7
+					}
+				],
+				"typeProperties": {
+					"schema": "Integration",
+					"table": "City_Staging"
+				}
+			},
+			"dependsOn": []
+		}
+	]
+}
